@@ -1,0 +1,58 @@
+package com.example.myapplication
+
+import android.bluetooth.BluetoothAdapter
+import android.os.SystemClock
+import java.lang.StringBuilder
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
+
+
+private val mUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+private val btAdapter = BluetoothAdapter.getDefaultAdapter()
+private val hc06 = btAdapter.getRemoteDevice("00:20:04:BD:73:CE")
+private val btSocket = hc06.createRfcommSocketToServiceRecord(mUUID)
+
+class ExampleLooperThread(private val buffer: ConcurrentLinkedQueue<Int>) : Thread() {
+
+    private fun readNextValue(): Int? {
+        val stringBuilder = StringBuilder()
+        val separator = 10
+        var x: Int
+        while (true) {
+            x = btSocket.inputStream.read()
+            if (x == separator) {
+                break
+            }
+            stringBuilder.append(x.toChar())
+        }
+        if (stringBuilder.isEmpty()) {
+            return null
+        }
+        return stringBuilder.toString().toInt()
+    }
+
+    override fun run() {
+
+        println(btAdapter.bondedDevices)
+        println(hc06.name)
+        println(btSocket)
+
+        while (!btSocket.isConnected) {
+            SystemClock.sleep(100)
+            btSocket.connect()
+        }
+
+        println(btSocket.isConnected)
+
+        var value: Int?
+
+        while (true) {
+            value = readNextValue()
+            if (value == null) {
+                continue
+            }
+            buffer.add(value)
+        }
+    }
+}
