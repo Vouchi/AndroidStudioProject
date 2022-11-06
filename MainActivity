@@ -1,0 +1,69 @@
+package com.example.myapplication
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import com.jjoe64.graphview.series.LineGraphSeries
+import com.jjoe64.graphview.GraphView
+import com.jjoe64.graphview.series.DataPoint
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock.sleep
+import java.util.concurrent.ConcurrentLinkedQueue
+
+class MainActivity : AppCompatActivity() {
+
+    private val bluetoothBuffer = ConcurrentLinkedQueue<Int>()
+    private val looperThread = ExampleLooperThread(bluetoothBuffer)
+    private val graphHandler = Handler(Looper.getMainLooper())
+    private lateinit var mTimer: Runnable
+    private lateinit var mSeries: LineGraphSeries<DataPoint>
+    private var graphLastXValue = 5.0
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        looperThread.start()
+        sleep(1000)
+
+        val graph: GraphView = findViewById(R.id.graph)
+        mSeries = LineGraphSeries()
+        graph.addSeries(mSeries)
+        graph.viewport.isXAxisBoundsManual = true
+        graph.viewport.isYAxisBoundsManual = true
+        graph.viewport.setMinX(0.0)
+        graph.viewport.setMaxX(100.0)
+        graph.viewport.setMinY(0.0)
+        graph.viewport.setMaxY(1024.0)
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        mTimer = object : Runnable {
+
+            override fun run() {
+
+                while (bluetoothBuffer.isEmpty()) {
+                }
+
+                mSeries.appendData(
+                    DataPoint(
+                        ++graphLastXValue,
+                        bluetoothBuffer.poll().toDouble()
+                    ), true, 100
+                )
+                graphHandler.postDelayed(this, 10)
+            }
+        }
+
+        graphHandler.postDelayed(mTimer, 10)
+
+    }
+
+    override fun onPause() {
+        graphHandler.removeCallbacks(mTimer)
+        super.onPause()
+    }
+
+}
